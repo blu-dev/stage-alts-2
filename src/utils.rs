@@ -118,6 +118,19 @@ impl ConcatHash for Hash40 {
     }
 }
 
+pub fn string_for_hash(hash: Hash40) -> String {
+    if HASH_LOOKUP.lock().is_none() {
+        init_hash_lookup(true);
+    }
+
+    HASH_LOOKUP
+        .lock()
+        .unwrap()
+        .get(&hash)
+        .cloned()
+        .unwrap_or_else(|| format!("{:#x}", hash.0))
+}
+
 pub fn init_hash_lookup(empty: bool) {
     if empty {
         *HASH_LOOKUP.lock() = Some(Box::leak(Box::new(HashMap::new())));

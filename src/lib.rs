@@ -14,6 +14,7 @@ use smashnet::curl::Curler;
 use utils::ConcatHash;
 
 mod logger;
+mod lua;
 mod manager;
 mod patching;
 mod resources;
@@ -92,6 +93,9 @@ unsafe fn initial_loading_hook(ctx: &mut skyline::hooks::InlineCtx) {
         .iter()
         .map(|hi| (hi.hash40(), hi.index()))
         .collect();
+
+    // Used for looking up stage name from lua
+    mgr.ui_to_place = lua::get_ui_hash_to_stage_hash();
 }
 
 static ALT_NUMBER: Mutex<Option<usize>> = Mutex::new(None);
@@ -201,27 +205,8 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
         return;
     };
 
-    if parent_path.file_name.hash40() == Hash40::from("mario_uworld") {
-        let alt = MARIO_UWORLD_ALT.load(Ordering::Acquire);
-        if alt == 3 {
-            MARIO_UWORLD_ALT.store(0, Ordering::Release);
-        } else {
-            MARIO_UWORLD_ALT.store(alt + 1, Ordering::Release);
-        }
-
-        *ALT_NUMBER.lock() = Some(alt);
-    } else if parent_path.file_name.hash40() == Hash40::from("animal_village") {
-        let alt = ANIMAL_VILLAGE_ALT.load(Ordering::Acquire);
-        if alt == 3 {
-            ANIMAL_VILLAGE_ALT.store(0, Ordering::Release);
-        } else {
-            ANIMAL_VILLAGE_ALT.store(alt + 1, Ordering::Release);
-        }
-
-        *ALT_NUMBER.lock() = Some(alt);
-    } else {
-        *ALT_NUMBER.lock() = Some(0);
-    }
+    let mut mgr = manager::MANAGER.write();
+    *ALT_NUMBER.lock() = mgr.fetch_advance();
 }
 
 #[skyline::main(name = "stage-alts")]
@@ -235,4 +220,6 @@ pub fn main() {
     check_download_hashes();
 
     skyline::install_hooks!(initial_loading_hook, prepare_for_load, init_loaded_dir);
+
+    lua::install();
 }

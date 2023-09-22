@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    manager::{AltInfo, StageInfo},
+    manager::{AltInfo, StageInfo, StageKind, UiPaths},
     resources::types::FilesystemInfo,
     utils::ConcatHash,
 };
@@ -353,17 +353,17 @@ pub fn build_alt_lookups() -> BTreeMap<StageInfo, Vec<AltInfo>> {
     let mut map: BTreeMap<StageInfo, Vec<_>> = BTreeMap::new();
 
     while index < 0x00FF_FFFF {
-        let path = search.get_path_list()[index];
-        index = path.path.index() as usize;
+        let parent = search.get_path_list()[index];
+        index = parent.path.index() as usize;
 
-        if !path.is_directory() {
+        if !parent.is_directory() {
             continue;
         }
 
-        let Ok(child_folder) = search.get_folder_path_entry_from_hash(path.path.hash40()) else {
+        let Ok(child_folder) = search.get_folder_path_entry_from_hash(parent.path.hash40()) else {
             log::error!(
                 "Failed to get folder entry for {}",
-                path.path.hash40().pretty()
+                parent.path.hash40().pretty()
             );
             continue;
         };
@@ -383,10 +383,14 @@ pub fn build_alt_lookups() -> BTreeMap<StageInfo, Vec<AltInfo>> {
                 .push(AltInfo {
                     slot_value: alt_id,
                     wifi_safe: true,
+                    ui_paths: UiPaths::new(StageKind::from(parent.file_name.hash40()), alt_id),
                 });
             }
         }
     }
+
+    map.values_mut()
+        .for_each(|value| value.sort_by_key(|info| info.slot_value));
 
     map
 }

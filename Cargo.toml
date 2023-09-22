@@ -23,6 +23,8 @@ smash-arc = { git = "https://github.com/jam1garner/smash-arc", features = [
 hash40 = "1.3.1"
 indexmap = "2.0.0"
 rand = { git = "https://github.com/skyline-rs/rand" }
+rlua-lua53-sys = { git = "https://github.com/blu-dev/rlua", branch = "smash" }
+prc-rs = { version = "1.6.1", features = ["indexmap-std"] }
 
 [patch.crates-io]
 getrandom = { git = "https://github.com/skyline-rs/getrandom" }
