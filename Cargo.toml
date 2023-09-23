@@ -29,6 +29,9 @@ prc-rs = { version = "1.6.1", features = ["indexmap-std"] }
 [patch.crates-io]
 getrandom = { git = "https://github.com/skyline-rs/getrandom" }
 
+[features]
+file-log = []
+
 [profile.dev]
 panic = "abort"
 
