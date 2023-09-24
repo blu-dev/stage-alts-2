@@ -232,9 +232,13 @@ impl AltManager {
     }
 
     pub fn nth_alt(&self, info: StageInfo, index: usize) -> Option<AltInfo> {
+        if index == 0 {
+            return None;
+        }
+
         self.alts
             .get(&info)
-            .and_then(|list| list.get(index))
+            .and_then(|list| list.get(index - 1))
             .copied()
     }
 

@@ -149,14 +149,14 @@ extern "C" fn set_alts(state: *mut lua::lua_State) -> i32 {
             let alt = lua::lua_tointegerx(state, -1, std::ptr::null_mut());
             lua::lua_pop(state, 1);
 
-            if form < 0 || panel < 0 || alt <= 0 {
+            if form < 0 || panel < 0 || alt < 0 {
                 None
             } else {
                 mgr.index_to_hash
-                    .get(&(dbg!(panel) as usize))
+                    .get(&(panel as usize))
                     .copied()
                     .map(|name| SelectedAltInfo {
-                        index: alt as usize - 1,
+                        index: alt as usize,
                         stage_info: StageInfo {
                             name,
                             normal_form: form == 0,
@@ -169,10 +169,8 @@ extern "C" fn set_alts(state: *mut lua::lua_State) -> i32 {
         let second = pop_info();
         let first = pop_info();
 
-        if first.is_none() {
-            log::error!("At least one stage must be valid");
-        } else {
-            mgr.set_alts(first.unwrap(), second, third);
+        if let Some(first) = first {
+            mgr.set_alts(first, second, third);
         }
 
         0

@@ -10,109 +10,110 @@ The following code was all written by hand, and was compiled via https://github.
 and disassembled using https://github.com/jam1garner/smash-luadec
 The output disassembly of this file is guaranteed to match exactly that of stage_select_actor3.lc
 when unmodified.
-]]
---
+]]--
 
 --[[
     this file was created from 6000 lines of disassembly that the DSLuaDecompiler couldn't decompile
 
     i am very tired
-]]
---
-
-local did_set_alt                = false
+]]--
 
 -- R0
-local ui_common                  = UiScriptPlayer.require("common/ui_common")
+local ui_common        = UiScriptPlayer.require("common/ui_common")
 
 -- R1
-local stage_select_bgm           = UiScriptPlayer.require2("common/stage_select_bgm3")
+local stage_select_bgm = UiScriptPlayer.require2("common/stage_select_bgm3")
 
 -- R2
-local layout_root_index          = 1
+local layout_root_index = 1
 
 -- R3
-local blink_counter              = 30
+local blink_counter = 30
 
 -- this is the default scaling of the stage tiles
 -- when they are not currently selected
 -- R4
-local unselected_button_scale    = 1.0
+local unselected_button_scale = 1.0
 
 -- this is the scaling of the stage tiles
 -- when they are currently selected
 -- R5
-local selected_button_scale      = 1.3
+local selected_button_scale = 1.3
 
 -- this is the number of frames for how long an (un)select animation
 -- should take
 -- R6
-local select_button_frames       = 4
+local select_button_frames = 4
 
 -- this appears to be related to the scroll bar on custom stages
 -- R7
-local scroll_amount_max          = 150.0
+local scroll_amount_max = 150.0
 
 -- medal states
-local MEDAL_STATE_UNINITIALIZED  = 0 -- R8
-local MEDAL_STATE_ACTIVE         = 1 -- R9
-local MEDAL_STATE_WAITING        = 2 -- R10
-local MEDAL_STATE_PLACED         = 3 -- R11
-local MEDAL_STATE_TERM           = 4 -- R12
+local MEDAL_STATE_UNINITIALIZED = 0        -- R8
+local MEDAL_STATE_ACTIVE        = 1        -- R9
+local MEDAL_STATE_WAITING       = 2        -- R10
+local MEDAL_STATE_PLACED        = 3        -- R11
+local MEDAL_STATE_TERM          = 4        -- R12
 
 -- Button IDs for the main buttons (unused)
-local BUTTON_ID_BACK             = 0 -- R13
-local BUTTON_ID_NORMAL           = 1 -- R14
-local BUTTON_ID_MAKE             = 2 -- R15
-local MAIN_BUTTON_COUNT          = 3 -- R16
+local BUTTON_ID_BACK    = 0       -- R13
+local BUTTON_ID_NORMAL  = 1       -- R14
+local BUTTON_ID_MAKE    = 2       -- R15
+local MAIN_BUTTON_COUNT = 3       -- R16
 
 -- Buttons IDs for the up/down buttons on the custom stage tab
-local BUTTON_ID_SUB_STAGE_UP     = 0 -- R17
-local BUTTON_ID_SUB_STAGE_DOWN   = 1 -- R18
+local BUTTON_ID_SUB_STAGE_UP   = 0       -- R17
+local BUTTON_ID_SUB_STAGE_DOWN = 1       -- R18
 
 -- Button ids for the stage select previews
-local BUTTON_ID_FORM_TYPE        = 0 -- R19
-local BUTTON_ID_MUSC_SELECT      = 1 -- R20
-local PREVIEW_BUTTON_COUNT       = 2 -- R21
+local BUTTON_ID_FORM_TYPE   = 0       -- R19
+local BUTTON_ID_MUSC_SELECT = 1       -- R20
+local PREVIEW_BUTTON_COUNT  = 2       -- R21
 
 --
-local SCENE_STATE_REGULAR        = 0 -- R22
-local SCENE_STATE_SHOULD_EXIT    = 1 -- R23
-local SCENE_STATE_EXITING        = 2 -- R24
-local SCENE_STATE_EXITED         = 3 -- R25
+local SCENE_STATE_REGULAR     = 0 -- R22
+local SCENE_STATE_SHOULD_EXIT = 1 -- R23
+local SCENE_STATE_EXITING     = 2 -- R24
+local SCENE_STATE_EXITED      = 3 -- R25
 
-exit_code_                       = nil
+--
+local INPUT_STRIKE = VI_BUTTON_EXTRA29
+local INPUT_ALT_R = VI_BUTTON_EXTRA28
+local INPUT_ALT_L = VI_BUTTON_EXTRA27
+
+exit_code_ = nil
 
 -- The layout root, gotten from the LayoutRootList with the index specified
 -- by `layout_root_index`
-local layout_root                = nil -- R26
+local layout_root = nil     -- R26
 
 -- The root view of the layout root stored in `layout_root`
-local root_view                  = nil -- R27
+local root_view = nil         -- R27
 
 -- VirtualInput
-local virtual_input              = nil -- R28
+local virtual_input = nil         -- R28
 
 -- LayoutButtonSelector
 -- This button selector contains the back button, and the
 -- taps for both the main stages and the custom stages
-local root_button_selector       = nil -- R29
+local root_button_selector = nil         -- R29
 
 -- LayoutButtonSelector
 -- Owns `back_button`, below, which is the virtual back button
-local back_button_selector       = nil -- R30
+local back_button_selector = nil         -- R30
 
 -- LayoutButtonSelector
 -- Owns the up/down buttons for navigating the custom stage tab
-local navigation_button_selector = nil -- R31
+local navigation_button_selector = nil         -- R31
 
 -- array of LayoutButtonSelector for stage previews
 -- handles selecting things like the music, form, etc.
-local preview_button_selectors   = {} -- R32
+local preview_button_selectors = { }         -- R32
 
 -- Data class that holds the selected/decided buttons selectors
-local SelectedButton             = { -- R33
-    new = function()
+local SelectedButton = {           -- R33
+    new = function ()
         return {
             selected_button_id_ = UI_INVALID_INDEX,
             decided_button_id_ = UI_INVALID_INDEX
@@ -121,22 +122,22 @@ local SelectedButton             = { -- R33
 }
 
 -- Instance of above class
-local root_selected_button       = nil -- R34
+local root_selected_button = nil         -- R34
 
 -- a virtual, invisible back button
 -- this button is triggered by a unique layout for only if you are pressing the B
 -- button, at which point it will update the root selector's back button
-local back_button                = nil -- R35
+local back_button = nil         -- R35
 
 -- selected button of the two buttons in `navigation_button_selector`
-local sub_stage_nav_button       = nil -- R36
+local sub_stage_nav_button = nil         -- R36
 
 -- selected buttons on each of the previews
-local preview_selected_buttons   = {} -- R37
-local current_selected_preview   = -1 -- R38
-local highlighed_preview         = -1 -- R39
-local prev_highlighed_preview    = -1 -- R40
-local current_selected_panel     = -1 -- R41
+local preview_selected_buttons = { }         -- R37
+local current_selected_preview   = -1          -- R38
+local highlighed_preview = -1          -- R39
+local prev_highlighed_preview = -1          -- R40
+local current_selected_panel = -1            -- R41
 
 --[[
 Data Type: StagePreview
@@ -150,14 +151,13 @@ Members:
     * `on_button_form_type_`: if the form info (icon + name) is extended out more than the icon
     * `on_button_music_`: if the music info is extended out more than the icon
     * `form_type_blink_counter_`: the number of frames that the form info is extended (swich from battlefield -> normal and you'll see what this is)
-]]
---
-local StagePreview = { -- R42
+]]--
+local StagePreview = {           -- R42
     new = function()
-        return {
+        return  {
+            selected_alt_ = 0,
             enable_ = false,
             panel_id_ = UI_INVALID_INDEX,
-            selected_alt_ = 0,
             form_type_ = 0,
             is_sub_stage_ = false,
             form_type_parts_ = nil,
@@ -172,8 +172,8 @@ local StagePreview = { -- R42
 -- Array of stage previews with length 3 (value of USE_STAGE_MAX)
 local stage_previews = {}          -- R43
 
-local is_invalid_stage_2 = false   -- R44
-local prev_invalid_stage_2 = false -- R45
+local is_invalid_stage_2 = false           -- R44
+local prev_invalid_stage_2 = false           -- R45
 
 --[[
 Data Type: StagePanel
@@ -183,23 +183,23 @@ Members:
     * `frame_`: the current frame of animation
     * `target_scale_`: the end scale of the animation
     * `scale_value_`: the amount to scale by (?)
-]]
---
-local StagePanel = { -- R46
+]]--
+local StagePanel = {           -- R46
     new = function()
         return {
             frame_ = 0,
             target_scale_ = 0.0,
-            scale_value_ = 0.0
+            scale_value_ = 0.0,
+            is_striked_ = false
         }
     end
 }
 
 -- Array of stage panels with length STAGE_PANEL_LIST_NUM
-local stage_panels = {} -- R47
+local stage_panels = {}          -- R47
 
 -- Information regarding the state of picking a custom stage
-local stage_sub_selector_info = { -- R48
+local stage_sub_selector_info = {          -- R48
     scroll_value_ = 0.0,
     scroll_end_ = false,
     is_play_se_ = true,
@@ -218,10 +218,9 @@ Members:
     * `put_index_`: the index of the panel which the medal is put on
     * `take_animation_`: animation to pickup the medal
     * `is_sub_stage_`: if it is on a custom stage
-]]
---
-local Medal = { -- R49
-    new = function()
+]]--
+local Medal = {           -- R49
+    new = function ()
         return {
             state_ = MEDAL_STATE_WAITING,
             put_index_ = UI_INVALID_INDEX,
@@ -232,29 +231,62 @@ local Medal = { -- R49
 }
 
 -- An array of Medal classes, with a length of 3 (same length as USE_STAGE_MAX)
-local medals = {}            -- R50
+local medals = {}          -- R50
 
-local tab_index = 0          -- R51
-local allow_sub_stage = true -- R52
+local tab_index = 0           -- R51
+local allow_sub_stage = true        -- R52
 
 -- The layout view for the selection tab
-local tab_layout = nil -- R53
+local tab_layout = nil                   -- R53
 
 -- The pane for the text describing which form is currently selected
-local tab_form_button_pane = nil -- R54
+local tab_form_button_pane = nil         -- R54
 
 -- Array of buttons in the root selector
-local main_buttons = {}                   -- R55
-local is_canceling = false                -- R56
-local ignore_cancel_input = false         -- R57
-local is_hand_interpolated_moving = false -- R58
-local should_play_cursor_sound = true     -- R59
-local is_page_changing = false            -- R60
-local long_cancel_se = nil                -- R61
+local main_buttons = {}          -- R55
+local is_canceling = false       -- R56
+local ignore_cancel_input = false       -- R57
+local is_hand_interpolated_moving = false       -- R58
+local should_play_cursor_sound = true        -- R59
+local is_page_changing = false       -- R60
+local long_cancel_se = nil         -- R61
 
 -- The animation to transition to the next scene, gotten from `root_view`
-local next_scene_animation = nil        -- R62
-local scene_state = SCENE_STATE_REGULAR -- R63
+local next_scene_animation = nil         -- R62
+local scene_state = SCENE_STATE_REGULAR     -- R63
+
+-- The strike cancel state
+local strike_cancel = {
+    current_ = 0,
+    start_se_ = 30,
+    total_ = 120,
+    is_canceling_ = false
+}
+
+-- Stage paging information
+local PANELS_PER_PAGE = 14
+local total_pages = 0 -- to be filled in during setup
+local current_page = 0
+local Page = {
+    new = function(start, length)
+        local ret = {}
+        for i=1,length,1 do
+            ret[i] = root_view:get_parts(string.format("set_parts_n_stage_%03d", start + i - 1))
+        end
+        return ret
+    end
+}
+local pages = {} -- to be filled in during setup
+
+-- custom for us
+local print_error_handler = function(err)
+    print("Error caught: " .. tostring(err))
+    
+end
+
+-- all of the (1 indexed) IDs which are actually Training (for tourney mode, to ignore them)
+-- this is basically a map<id, is_training>
+local training_stages = {}
 
 -- Performs interpolation of a value using a sin wave for a more natural curve than just linear
 -- CLOSURE_4, R64
@@ -287,7 +319,7 @@ end
 -- Gets the index of the next enabled stage preview
 -- CLOSURE_8, R68
 local get_next_enabled_preview = function()
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         if stage_previews[i].enable_ == true then
             return i - 1
         end
@@ -298,7 +330,7 @@ end
 -- Gets the index of the last enabled stage preview
 -- CLOSURE_9, R69
 local get_last_enabled_preview = function()
-    for i = USE_STAGE_NUM, 1, -1 do
+    for i=USE_STAGE_NUM, 1, -1 do
         if stage_previews[i].enable_ == true then
             return i - 1
         end
@@ -309,7 +341,7 @@ end
 -- Gets the index of the next disabled stage preview
 -- CLOSURE_10, R70
 local get_next_disabled_preview = function()
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         if stage_previews[i].enable_ == false then
             return i - 1
         end
@@ -320,7 +352,7 @@ end
 -- Gets the index of the last disabled stage preview
 -- CLOSURE_11, R71
 local get_last_disabled_preview = function()
-    for i = USE_STAGE_NUM, 1, -1 do
+    for i=USE_STAGE_NUM, 1, -1 do
         if stage_previews[i].enable_ == false then
             return i - 1
         end
@@ -401,7 +433,7 @@ local set_scene_enable = function(enable)
     back_button_selector:set_focus(show_back_button)
 
     local stage_preview_button = nil
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         stage_preview_button = preview_button_selectors[i]
         stage_preview_button:set_enable(enable)
         stage_preview_button:set_focus(enable)
@@ -478,7 +510,7 @@ end
 local set_stage_preview_buttons_enable = function(preview_index, enable)
     -- the BUTTON_FORM_TYPE_0 is the index of the first
     -- stage preview's form button, and to get to the next one
-    -- you add 2, which is why this adds preview_index << 1 (shifting to the left by
+    -- you add 2, which is why this adds preview_index << 1 (shifting to the left by 
     -- one is the same as multiplying by 2)
     local button_id = BUTTON_FORM_TYPE_0 + (preview_index << 1)
     local preview = preview_button_selectors[preview_index + 1]
@@ -593,7 +625,7 @@ end
 local select_panel = function(panel_id)
     if panel_id ~= UI_INVALID_INDEX then
         if UiScriptPlayer.invoke("is_lock_stage_panel", panel_id) == true then
-            return
+            return 
         end
         local panel = root_view:get_button(get_stage_panel_name(panel_id))
         panel:select(false, true)
@@ -613,12 +645,49 @@ local unselect_panel = function(panel_id)
     end
 end
 
--- Changes the currently selected panel
+-- attempts to find the real desired panel using the given panel ID
+local find_proper_panel = function(panel_id)
+    if panel_id == UI_INVALID_INDEX then
+        return panel_id
+    end
+
+    -- in tourney mode, dont allow selection of training stage.
+    -- They are used as a buffer to put the starters/counterpicks
+    -- in the right locations.
+    if training_stages[panel_id + 1] == true then
+        return UI_INVALID_INDEX
+    end
+
+    local panel_min = current_page * PANELS_PER_PAGE
+    local panel_max = (current_page + 1) * PANELS_PER_PAGE
+    if panel_min <= panel_id and panel_id < panel_max then
+        return panel_id
+    end
+
+    if (panel_min + panel_id) >= STAGE_PANEL_LIST_NUM then
+        return UI_INVALID_INDEX
+    else
+        return panel_min + panel_id
+    end
+end
+
+local find_page_for_panel = function(panel_id)
+    if panel_id == UI_INVALID_INDEX then
+        return 0, panel_id
+    end
+
+    local page = panel_id // PANELS_PER_PAGE
+    local front_panel = panel_id % PANELS_PER_PAGE
+    return page, front_panel
+end
+-- Changes the currently selected
 -- CLOSURE_39, R99
 local change_panel = function(new_panel_id)
     if current_selected_panel == new_panel_id then
         return false
     end
+
+    new_panel_id = find_proper_panel(new_panel_id)
 
     unselect_panel(current_selected_panel)
     select_panel(new_panel_id)
@@ -684,6 +753,7 @@ local switch_stage_preview = function(preview_id)
     else
         set_tab_form_text(preview.form_type_)
     end
+
 end
 
 -- Sets the information for the specified medal
@@ -707,7 +777,7 @@ end
 -- Checks whether any medal is currently grabbed
 -- CLOSURE_44, R104
 local any_medal_grabbed = function()
-    for i = 0, USE_STAGE_NUM - 1, 1 do
+    for i=0, USE_STAGE_NUM - 1, 1 do
         if UiScriptPlayer.invoke("is_medal_grabbed", i) == true then
             return true
         end
@@ -734,7 +804,7 @@ local update_medal_visibility = function()
         return
     end
 
-    for i = 0, USE_STAGE_NUM - 1, 1 do
+    for i=0, USE_STAGE_NUM - 1, 1 do
         if UiScriptPlayer.invoke("is_medal_grabbed", i) == true then
             if i ~= current_selected_preview then
                 UiScriptPlayer.invoke("set_medal_visible", i, false)
@@ -787,7 +857,7 @@ local play_tab_animation = function(current_tab, is_select)
     else
         button_name = "set_parts_btn_normal"
     end
-
+    
     if is_select == true then
         root_view:play_animation_parts(button_name, "tab_select")
     else
@@ -823,7 +893,7 @@ local change_page = function(should_play_page_change)
 
     -- sets the button as active, does not set it as the active tab
     set_main_button_active(BUTTON_TAB_SUB, normal_select)
-    for i = 0, USE_STAGE_NUM - 1, 1 do
+    for i=0, USE_STAGE_NUM - 1, 1 do
         local medal = medals[i + 1]
         if medal.state_ == MEDAL_STATE_PLACED then
             if medal.is_sub_stage_ == false then
@@ -877,6 +947,69 @@ local change_page = function(should_play_page_change)
     end
 end
 
+local change_sub_page = function(target_page)
+    -- Page is actually all the parts of the set_parts_n_stage_XXX
+    local current_page_ = pages[current_page + 1]
+    local target_page_ = pages[target_page + 1]
+
+    local positions = {}
+
+    -- load the positions of the first set of panels
+    for i=1,PANELS_PER_PAGE,1 do
+        local parts = root_view:get_parts(get_stage_panel_name(i - 1))
+        local px, py = parts:get_root_pane():get_position()
+        positions[i] = {
+            x = px,
+            y = py
+        }
+    end
+
+    -- hide all of the panels on the current page
+    for i, panel in ipairs(current_page_) do
+        panel:set_visible(false)
+    end      
+
+    -- reposition and show the new page's panels
+    for i, panel in ipairs(target_page_) do 
+        -- dont reposition or show any invalid stages
+        if i > STAGE_PANEL_LIST_NUM then
+            break
+        end
+        
+        -- set the preview    
+        UiScriptPlayer.invoke("set_stage_preview_from_panel", 0 , i - 1)
+        -- use the set preview to check if this preview is the training stage
+        local is_random = UiScriptPlayer.invoke("is_training_stage_preview",  0)
+
+        -- if its the training stage (which we are using as a buffer to align the stages),
+        -- then hide the stage, and record whether its the training stage or not
+        print("is random: " .. tostring(is_random))   
+        if is_random == true then
+            -- save that this is the training stage
+            training_stages[i] = true
+            print("found the random stage: " .. i)
+            panel:set_visible(false)
+
+            --[[ for getting reflective data about the stages
+            for key,value in pairs(getmetatable(panel)) do
+                print("panel member " .. key .. ", value: " .. tostring(value) );
+            end
+
+            for key,value in pairs(getmetatable(panel:get_root_pane())) do
+                print("root pane member " .. key .. ", value: " .. tostring(value) );
+            end
+            ]]--
+        else
+            training_stages[i] = false
+            
+            -- print("setting root pane parent pane position")
+            -- panel:get_root_pane():get_parent_pane():set_position(positions[offset].x, positions[offset].y)  
+            print("bringing to front panel")
+            panel:set_visible(true)
+        end
+    end
+    current_page = target_page
+end
 -- Sets up the SSS layout
 -- CLOSURE_51, R111
 local setup = function()
@@ -885,16 +1018,20 @@ local setup = function()
     virtual_input = layout_root:get_virtual_input()
     next_scene_animation = root_view:get_animation("anim_next_scene")
 
-    for i = 1, USE_STAGE_MAX, 1 do
+    -- set up the previews (these are the 1-3 big previews on SSS)
+    for i=1, USE_STAGE_MAX, 1 do
         stage_previews[i] = StagePreview.new()
         medals[i] = Medal.new()
     end
 
-    for i = 1, STAGE_PANEL_LIST_NUM, 1 do
+    for i=1, STAGE_PANEL_LIST_NUM, 1 do
         stage_panels[i] = StagePanel.new()
+
+        local strike_panel = root_view:get_parts(get_stage_panel_name(i - 1)):get_pane("set_rep_strike")
+        strike_panel:set_visible(false)
     end
 
-    for i = 0, USE_STAGE_NUM - 1, 1 do
+    for i=0, USE_STAGE_NUM - 1, 1 do
         local stage_parts = root_view:get_parts(get_stage_preview_name(i))
         stage_previews[i + 1].form_type_parts_ = stage_parts:get_parts("set_parts_btn_stage")
         stage_previews[i + 1].music_parts_ = stage_parts:get_parts("set_parts_btn_music")
@@ -908,7 +1045,7 @@ local setup = function()
     config.use_only_pointer_input = true
     config.is_unique_se = true
     config.cursor_se_label_code = "se_system_cursor"
-
+    
     root_button_selector = LayoutButtonSelector.new()
     root_button_selector:setup(root_view, "selector_0", config)
 
@@ -931,7 +1068,7 @@ local setup = function()
 
     local parts, selector = nil
     local current_button = BUTTON_FORM_TYPE_0
-    for i = 0, USE_STAGE_NUM - 1, 1 do
+    for i=0, USE_STAGE_NUM - 1, 1 do
         selector = LayoutButtonSelector.new()
         parts = root_view:get_parts(get_stage_preview_name(i))
 
@@ -951,11 +1088,19 @@ local setup = function()
     }
 
     local name = nil
-    for i = 1, BUTTON_KIND_MAIN_NUM, 1 do
+    for i=1, BUTTON_KIND_MAIN_NUM, 1 do
         name = main_button_names[i]
         root_button_selector:setup_button(i - 1, name)
         main_buttons[i] = root_view:get_button(name)
         main_buttons[i]:set_decide_on_trigger(true, false)
+    end
+
+    total_pages = STAGE_PANEL_LIST_NUM // PANELS_PER_PAGE
+    if STAGE_PANEL_LIST_NUM % PANELS_PER_PAGE ~= 0 then
+        total_pages = total_pages + 1
+    end
+    for i=0,total_pages-1,1 do
+        pages[i + 1] = Page.new(i * PANELS_PER_PAGE, math.min(PANELS_PER_PAGE, STAGE_PANEL_LIST_NUM - i * PANELS_PER_PAGE))
     end
 
     local back_button = root_view:get_parts(main_button_names[BUTTON_BACK + 1])
@@ -967,6 +1112,13 @@ local setup = function()
     if IS_INVISIBLE_CANCEL == true then
         back_button:set_visible(false)
     end
+
+    INPUT_STRIKE = VI_BUTTON_EXTRA29
+    INPUT_ALT_R = VI_BUTTON_EXTRA28
+    INPUT_ALT_L = VI_BUTTON_EXTRA27
+    virtual_input:set_assign(INPUT_STRIKE, LIB_BUTTON_ZR, nil)
+    virtual_input:set_assign(INPUT_ALT_R, LIB_BUTTON_R, nil)
+    virtual_input:set_assign(INPUT_ALT_L, LIB_BUTTON_L, nil)
 end
 
 -- Initializes the medal position, presumably at the beginning of the SSS load
@@ -995,7 +1147,7 @@ local setup_from_environment = function()
     tab_form_button_pane = tab_layout:get_pane("set_txt_normal")
     set_tab_form_text(STAGE_FORM_TYPE_NORMAL)
 
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         if IS_SELECT_FROM_FIRST == true and 1 < i then
             break
         end
@@ -1008,7 +1160,10 @@ local setup_from_environment = function()
             preview.is_sub_stage_ = UiScriptPlayer.invoke("is_sub_entrance_param", current_id)
             if preview.is_sub_stage_ == false then
                 preview.panel_id_ = UiScriptPlayer.invoke("get_panel_id_entrance_param", current_id)
+                local page, front_panel = find_page_for_panel(preview.panel_id_)
+                change_sub_page(page)
                 set_stage_preview_from_stage_panel(current_id, preview.panel_id_)
+                preview.panel_id_ = front_panel
                 UiScriptPlayer.invoke("set_enable_shortcut_button_stage_preview", current_id, false)
                 tab_index = TAB_SWITCH_NORMAL
             else
@@ -1062,6 +1217,7 @@ local setup_from_environment = function()
             local preview = stage_previews[current_selected_preview + 1]
             if preview.is_sub_stage_ == false then
                 UiScriptPlayer.invoke("set_hand_position_from_panel", preview.panel_id_)
+                preview.panel_id_ = find_proper_panel(preview.panel_id_)
             else
                 UiScriptPlayer.invoke("set_hand_position_from_stage_sub_panel", preview.panel_id_)
                 stage_sub_selector_info.waiting_in_ = true
@@ -1125,6 +1281,8 @@ local setup_from_environment = function()
     end
 
     UiScriptPlayer.invoke("setup_bgm")
+
+    change_sub_page(0)
 end
 
 -- Cancels, presumably a part of the exit sequence
@@ -1211,7 +1369,7 @@ end
 
 -- Stops canceling the scene
 -- CLOSURE_58, R118
-local stop_canceling = function()
+local stop_canceling = function() 
     if is_canceling == true then
         is_canceling = false
         local button = get_main_button(BUTTON_BACK)
@@ -1284,6 +1442,37 @@ local check_for_cancel = function()
     return false
 end
 
+local strike_stage = function(panel_id, is_strike)
+    if panel_id ~= UI_INVALID_INDEX and stage_panels[panel_id + 1].is_striked_ ~= is_strike then
+        stage_panels[panel_id + 1].is_striked_ = is_strike
+        local parts = root_view:get_parts(get_stage_panel_name(panel_id))
+        local strike_pane = parts:get_pane("set_rep_strike")
+        strike_pane:set_visible(is_strike)
+    end
+end
+
+
+local check_for_strike_cancel = function()
+    strike_cancel.is_canceling_ = virtual_input:is_pressing(INPUT_STRIKE)
+    
+    if strike_cancel.is_canceling_ == true then
+        strike_cancel.current_ = strike_cancel.current_ + 1
+        if strike_cancel.current_ == strike_cancel.start_se_ then
+            play_long_cancel_se()
+        end
+    else
+        strike_cancel.current_ = 0
+        stop_long_cancel_se()
+    end
+
+    if strike_cancel.current_ == strike_cancel.total_ then
+        for i=1, STAGE_PANEL_LIST_NUM, 1 do
+            strike_stage(i - 1, false)
+        end
+        stop_long_cancel_se()
+    end
+end
+
 -- Cycles the stage form
 -- CLOSURE_61, R121
 local cycle_stage_form = function()
@@ -1292,7 +1481,7 @@ local cycle_stage_form = function()
             local next_form = get_next_stage_form(stage_previews[current_selected_preview + 1].form_type_)
             set_stage_preview_form(current_selected_preview, next_form)
             switch_stage_form(current_selected_preview, next_form)
-            for i = 1, USE_STAGE_NUM, 1 do
+            for i=1, USE_STAGE_NUM, 1 do
                 local preview = stage_previews[i]
                 if preview.enable_ == false then
                     if i - 1 ~= current_selected_preview then
@@ -1404,8 +1593,13 @@ local decide_normal_stage = function()
     if is_invalid_stage_2 == true then
         return false
     end
-
+    
     if current_selected_panel == UI_INVALID_INDEX then
+        return false
+    end
+
+    if stage_panels[current_selected_panel + 1].is_striked_ then
+        UiSoundManager.play_se(UI_SE_ID_ERROR)
         return false
     end
 
@@ -1511,7 +1705,7 @@ local handle_panel_decide = function()
 
     UiSoundManager.play_se_label("se_system_plate_off_stageselect")
     if IS_DECIDE_SE_AUDIENCE == true then
-        UiSoundManager.play_se_label("se_audience_suddendeath")
+       UiSoundManager.play_se_label("se_audience_suddendeath")
     end
 
     if check_all_previews_enabled() == true then
@@ -1575,7 +1769,7 @@ local handle_button_decide = function()
 
     decided = UI_INVALID_INDEX
     if ENABLE_STAGE_FORM_TYPE == true then
-        for i = 1, USE_STAGE_NUM, 1 do
+        for i=1, USE_STAGE_NUM, 1 do
             decided = preview_selected_buttons[i].decided_button_id_
             if BUTTON_FORM_TYPE_0 <= decided then
                 break
@@ -1618,7 +1812,7 @@ local normal_tab_main_update = function()
     if check_all_previews_enabled() == false then
         if UiScriptPlayer.invoke("is_hand_interpolated_moving") == false then
             local panel_id = UiScriptPlayer.invoke("get_hand_on_stage_panel_id")
-
+            panel_id = find_proper_panel(panel_id)
             if change_panel(panel_id) == true or is_hand_interpolated_moving == true then
                 if UiScriptPlayer.invoke("is_training_stage_preview", current_selected_preview) == true then
                     local preview = stage_previews[current_selected_preview + 1]
@@ -1764,7 +1958,7 @@ end
 local update_stage_previews = function()
     prev_highlighed_preview = highlighed_preview
 
-    highlighed_preview = UiScriptPlayer.invoke("get_hand_on_stage_preview_id")
+    highlighed_preview =  UiScriptPlayer.invoke("get_hand_on_stage_preview_id")
 
     if highlighed_preview ~= UI_INVALID_INDEX then
         if stage_previews[highlighed_preview + 1].enable_ == false then
@@ -1804,7 +1998,7 @@ local update_stage_previews = function()
                 index = current_selected_preview
             end
         end
-
+        
         if index ~= UI_INVALID_INDEX then
             local preview = stage_previews[index + 1]
             if preview.on_button_form_type_ == false then
@@ -1816,7 +2010,23 @@ local update_stage_previews = function()
         end
     end
 
-    for i = 1, USE_STAGE_NUM, 1 do
+    if virtual_input:is_pressed(INPUT_STRIKE) == true then
+        strike_stage(current_selected_panel, true)
+    end
+    
+    local is_striked = current_selected_panel ~= UI_INVALID_INDEX and stage_panels[current_selected_panel + 1].is_striked_
+    if is_striked ~= prev_invalid_stage_2 then
+        local anim = "on_atteintion"
+        if not is_striked then
+            anim = "off_atteintion"
+        end
+        root_view:play_animation_parts(get_stage_preview_name(current_selected_preview), anim)
+        local preview_parts = root_view:get_parts(get_stage_preview_name(current_selected_preview))
+        preview_parts:get_pane("txt_attention"):set_text_string("This stage has been striked")
+    end
+    prev_invalid_stage_2 = is_striked
+
+    for i=1, USE_STAGE_NUM, 1 do
         local button_id = BUTTON_FORM_TYPE_0 + (i - 1) * PREVIEW_BUTTON_COUNT
         local selected = preview_selected_buttons[i].selected_button_id_ - button_id
         local is_selected_preview = false
@@ -1867,17 +2077,18 @@ local update_stage_previews = function()
         end
         prev_invalid_stage_2 = is_invalid_stage_2
     end
+        
 end
 
 -- CLOSURE_75
 update_stage_preview_bgm_select = function()
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         local preview = stage_previews[i]
         if preview.on_button_form_type_ == true then
             if preview.form_type_ == STAGE_FORM_TYPE_NORMAL or UiScriptPlayer.invoke("is_fixed_form_type_stage_preview", i - 1) == true then
                 preview.form_type_parts_:play_animation("blink_off", 1.0)
                 preview.form_type_blink_counter_ = 0
-            end
+            end         
             preview.form_type_parts_:play_animation("color_blink_off", 1.0)
             preview.on_button_form_type_ = false
         end
@@ -1888,24 +2099,139 @@ end
 -- Updates all the panel scalings
 -- CLOSURE_76, R135
 local update_panel_scalings = function()
-    for i = 0, STAGE_PANEL_LIST_NUM - 1, 1 do
+    for i=0, STAGE_PANEL_LIST_NUM - 1, 1 do
         update_panel_scaling(i)
     end
 end
 
--- CLOSURE_77, R136
-local update_both_tabs = function()
-    if allow_sub_stage == true then
-        if virtual_input:is_pressed(INPUT_TAB_CHANGE_L) == true then
-            if tab_index ~= TAB_SWITCH_NORMAL then
-                tab_index = TAB_SWITCH_NORMAL
-                change_page(true)
+
+local handle_change_page = function(dir)
+    if dir == 0 then
+        return
+    end
+
+    -- if there is only one page, do nothing
+    if total_pages == 1 then
+        return
+    end
+
+    -- Target page is going to be the page that we are transitioning to
+    -- Since there is a max amount of pages (value of `target_pages`), we can use
+    -- that value as the indicator of when we are going to be seeing the custom stages screen
+    local target_page = nil
+    -- Check if we are in the custom stages screen
+    if tab_index == TAB_SWITCH_SUB then
+        -- If we are going to the left, then set our page at the last page
+        if dir < 0 then
+            target_page = total_pages - 1
+        else -- Otherwise, restart at the beginning
+            target_page = 0
+        end
+    else
+        -- If we are going to the left and we are on the normal stages screen, then
+        -- we need to do some extra checks
+        if dir < 0 then
+            -- If we are on the first page, then going to the left puts us on the custom stages screen
+            if current_page == 0 then
+                target_page = total_pages
+            else -- Otherwise just go left a page
+                target_page = current_page - 1
             end
-        elseif virtual_input:is_pressed(INPUT_TAB_CHANGE_R) == true and allow_sub_stage == true and tab_index ~= TAB_SWITCH_SUB then
-            tab_index = TAB_SWITCH_SUB
-            change_page(true)
+        else -- Increase our page by one if going to the right, will naturally take us to the custom stages screen
+            target_page = current_page + 1
         end
     end
+
+    -- Check if we are on the custom stages screen, ensure that we are able to see custom stages
+    if target_page == total_pages and allow_sub_stage == false then
+        -- If our direction is left then go to the final page, if our direction is right then go to the first page
+        target_page = dir < 0 and (total_pages - 1) or 0
+    end
+
+    -- At this point, if our target_page is total_pages, we go to custom stages
+    if target_page == total_pages then
+        tab_index = TAB_SWITCH_SUB
+        change_page(true)
+    else -- Otherwise, see if we need to switch to the normal stage screen first
+        if tab_index == TAB_SWITCH_SUB then
+            tab_index = TAB_SWITCH_NORMAL
+            change_page(true)
+        end
+        -- Set our sub page
+        change_sub_page(target_page)
+        UiSoundManager.play_se_label("se_system_page_change")
+    end
+
+end
+
+local get_page_button_dir = function()
+    local PaneBoundingBox = {
+        new = function(pane)
+            local w, h = pane:get_size()
+            local x, y = pane:get_position()
+            local bbox = {
+                top = y + h / 2,
+                bottom = y - h / 2,
+                left = x - w / 2,
+                right = x + w / 2
+            }
+            function bbox:contains(x, y)
+                return self.left <= x and self.right >= x and self.bottom <= y and self.top >= y
+            end
+            return bbox
+        end
+    }
+    -- Handles the page changing
+    local move_dir = 0
+    -- Check for the hit on left or right
+    local x = UiScriptPlayer.invoke("get_hand_position_x")
+    local y = UiScriptPlayer.invoke("get_hand_position_y")
+    
+    local hit_left_pane = root_view:get_pane("hit_backward")
+    local hit_right_pane = root_view:get_pane("hit_forward")
+
+    local left_box = PaneBoundingBox.new(hit_left_pane)
+    local right_box = PaneBoundingBox.new(hit_right_pane)
+
+    local is_decide = virtual_input:is_decide()
+
+    if left_box:contains(x, y) and is_decide then
+        move_dir = -1
+    elseif right_box:contains(x, y) and is_decide then
+        move_dir = 1
+    end
+    return move_dir
+end
+
+-- CLOSURE_77, R136
+local update_both_tabs = function()
+    local PaneBoundingBox = {
+        new = function(pane)
+            local w, h = pane:get_size()
+            local x, y = pane:get_position()
+            local bbox = {
+                top = y + h / 2,
+                bottom = y - h / 2,
+                left = x - w / 2,
+                right = x + w / 2
+            }
+            function bbox:contains(x, y)
+                return self.left <= x and self.right >= x and self.bottom <= y and self.top >= y
+            end
+            return bbox
+        end
+    }
+
+    -- Handles the page changing
+    local move_dir = get_page_button_dir()
+    
+    if virtual_input:is_pressed(INPUT_TAB_CHANGE_L) == true then
+        move_dir = -1
+    elseif virtual_input:is_pressed(INPUT_TAB_CHANGE_R) == true then
+        move_dir = 1
+    end
+
+    handle_change_page(move_dir)
 
     if tab_index == TAB_SWITCH_NORMAL then
         normal_tab_main_update()
@@ -1932,7 +2258,7 @@ local update_both_tabs = function()
         is_button_selected = true
         is_sub_stage_button = true
     else
-        for i = 1, USE_STAGE_NUM, 1 do
+        for i=1, USE_STAGE_NUM, 1 do
             if preview_selected_buttons[i].selected_button_id_ >= 0 then
                 is_button_selected = true
                 break
@@ -1964,7 +2290,7 @@ local update_from_pointer = function()
     local selected, decided = nil
 
     selected, decided = root_button_selector:update_pointer_input(x, y, virtual_input, true)
-
+    
     root_selected_button.selected_button_id_ = selected
     root_selected_button.decided_button_id_ = decided
 
@@ -1983,7 +2309,7 @@ local update_from_pointer = function()
         sub_stage_nav_button.decided_button_id_ = UI_INVALID_INDEX
     end
 
-    for i = 1, USE_STAGE_NUM, 1 do
+    for i=1, USE_STAGE_NUM, 1 do
         selected, decided = preview_button_selectors[i]:update_pointer_input(x, y, virtual_input, true)
         preview_selected_buttons[i].selected_button_id_ = selected
         preview_selected_buttons[i].decided_button_id_ = decided
@@ -2006,8 +2332,9 @@ local try_handle_exiting_scene = function()
             scene_state = SCENE_STATE_EXITED
             return false
         else
+
             local was_invalid_sub_stage = false
-            for i = 1, USE_STAGE_NUM, 1 do
+            for i=1, USE_STAGE_NUM, 1 do
                 if stage_previews[i].is_sub_stage_ == true then
                     if UiScriptPlayer.invoke("is_enable_made_stage_sub_list") ~= false then
                         break
@@ -2032,8 +2359,7 @@ local try_handle_exiting_scene = function()
                 if is_bgm_pressed == true then
                     should_play_se = false
                 else
-                    root_view:play_animation_parts(get_stage_preview_name(current_selected_preview),
-                        "on_crs_preview_anime")
+                    root_view:play_animation_parts(get_stage_preview_name(current_selected_preview), "on_crs_preview_anime")
                 end
 
                 un_decide(true, should_play_se)
@@ -2103,6 +2429,8 @@ local change_selected_alt = function(is_forward)
     texture_pane:replace_texture(texture_idx)
 end
 
+
+
 -- CLOSURE_80, R139
 local regular_main_update = function()
     set_scene_enable(true)
@@ -2111,7 +2439,7 @@ local regular_main_update = function()
         while try_handle_exiting_scene() == true do
             coroutine.yield()
         end
-
+        
         if scene_state == SCENE_STATE_EXITED then
             exit_normal()
             break
@@ -2119,6 +2447,7 @@ local regular_main_update = function()
         if stage_select_bgm:update() == false then
             update_from_pointer()
             if handle_button_decide() == false then
+
                 if IS_MODE_STAGE_2_CHANGE == true then
                     is_invalid_stage_2 = false
                     local current_preview_index = current_selected_preview
@@ -2173,12 +2502,14 @@ local regular_main_update = function()
                                 end
                             end
                         end
+
                     end
                 end
 
                 if check_for_cancel() == true then
                     break
                 end
+                check_for_strike_cancel()
                 if un_decide(false, true) == false then
                     if virtual_input:is_pressed(INPUT_NEXT_SCENE) == true then
                         local is_valid_stage = true
@@ -2213,7 +2544,8 @@ local regular_main_update = function()
                                 UiScriptPlayer.invoke("set_stage_preview_empty_exit", off_preview_index, form)
                             end
                         end
-                    elseif virtual_input:is_decide() == true then
+                    elseif virtual_input:is_decide() == true and get_page_button_dir() == 0 then
+                        -- possible
                         handle_panel_decide()
                     elseif virtual_input:is_pressed(INPUT_BGM_SELECT) == true then
                         local index = current_selected_preview
@@ -2221,11 +2553,12 @@ local regular_main_update = function()
                             index = highlighed_preview
                         end
                         open_bgm_select(index, false)
-                    elseif virtual_input:is_pressed(VI_BUTTON_EXTRA29) == true then
-                        change_selected_alt(true)
-                    elseif virtual_input:is_pressed(VI_BUTTON_EXTRA28) == true then
+                    elseif virtual_input:is_pressed(INPUT_ALT_L) then
                         change_selected_alt(false)
+                    elseif virtual_input:is_pressed(INPUT_ALT_R) then
+                        change_selected_alt(true)
                     else
+                        -- possible
                         update_both_tabs()
                     end
                 end
@@ -2265,12 +2598,22 @@ local my_music_main_update = function()
         if stage_select_bgm:update() == false then
             if virtual_input:is_cancel() == true then
                 back_button_selector:decide_button(BUTTON_BACK)
-            elseif virtual_input:is_decide() == true then
+            elseif virtual_input:is_decide() == true and get_page_button_dir() == 0 then
                 if 0 <= current_selected_panel and UiScriptPlayer.invoke("is_empty_stage_preview", current_selected_preview) == false then
                     stage_select_bgm:activate(0, true, false)
                     show_scene_and_hand(false, false)
                 end
             else
+                -- Handles the page changing
+                local move_dir = get_page_button_dir()
+                
+                if virtual_input:is_pressed(INPUT_TAB_CHANGE_L) == true then
+                    move_dir = -1
+                elseif virtual_input:is_pressed(INPUT_TAB_CHANGE_R) == true then
+                    move_dir = 1
+                end
+            
+                handle_change_page(move_dir)
                 normal_tab_main_update()
                 update_panel_scalings()
                 local should_be_operatable = false
@@ -2293,16 +2636,16 @@ local my_music_main_update = function()
         end
 
         coroutine.yield()
+
     until false
 
     virtual_input:set_enable(false)
 end
 
 main = function()
-    Alts.send_message("Hello world from lua!")
     setup()
     stage_select_bgm:setup()
-    setup_from_environment()
+    xpcall(setup_from_environment, print_error_handler)
     root_view:play_animation("in", 1.0)
     if IS_SIMPLE_CANCEL == true then
         local parts = root_view:get_parts("set_parts_txt_head_00")
@@ -2316,21 +2659,10 @@ main = function()
         coroutine.yield()
     until root_view:is_animation_finished("in")
     virtual_input:set_enable(true)
-
-    virtual_input:set_assign(VI_BUTTON_EXTRA29, LIB_BUTTON_R, nil)
-    virtual_input:set_assign(VI_BUTTON_EXTRA28, LIB_BUTTON_L, nil)
-
     if IS_MY_MUSIC == true then
-        my_music_main_update()
+        xpcall(my_music_main_update, print_error_handler)
     else
-        regular_main_update()
-    end
-
-    stop_long_cancel_se()
-    UiScriptPlayer.invoke("finalize_bgm")
-
-    if exit_code_ ~= SCENE_EXIT_CODE_NORMAL then
-        return
+        xpcall(regular_main_update, print_error_handler)
     end
 
     local first = {
@@ -2380,8 +2712,12 @@ main = function()
         third.panel_,
         third.form_
     )
+
+    stop_long_cancel_se()
+    UiScriptPlayer.invoke("finalize_bgm")
 end
 
 get_tab_switch = function()
     return tab_index
 end
+ 
