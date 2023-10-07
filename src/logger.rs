@@ -3,13 +3,11 @@ use log::Level;
 use owo_colors::OwoColorize;
 use std::{fs::File, io::Write};
 
-pub struct StageAltsLogger(locks::Mutex<File>);
+pub struct StageAltsLogger;
 
 impl StageAltsLogger {
     pub fn new() -> Self {
-        std::fs::create_dir_all("sd:/ultimate/stage-alts").unwrap();
-        let path = format!("sd:/ultimate/stage-alts/stage-alts.log",);
-        Self(Mutex::new(File::create(path).unwrap()))
+        Self
     }
 }
 
@@ -32,26 +30,9 @@ impl log::Log for StageAltsLogger {
             colorize_level(record.level()),
             record.args()
         );
-
-        #[cfg(feature = "file-log")]
-        self.0
-            .lock()
-            .write_all(
-                format!(
-                    "[{}:{} | {}] {}\n",
-                    record.file().unwrap(),
-                    record.line().unwrap(),
-                    record.level().as_str(),
-                    record.args()
-                )
-                .as_bytes(),
-            )
-            .unwrap();
     }
 
-    fn flush(&self) {
-        self.0.lock().flush().unwrap();
-    }
+    fn flush(&self) {}
 
     fn enabled(&self, _metadata: &log::Metadata) -> bool {
         true

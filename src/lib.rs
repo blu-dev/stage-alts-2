@@ -1,6 +1,6 @@
 use std::{
     path::Path,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use locks::Mutex;
@@ -13,9 +13,11 @@ use smash_arc::{ArcLookup, Hash40, SearchLookup};
 use smashnet::curl::Curler;
 use utils::ConcatHash;
 
+mod callbacks;
 mod logger;
 mod lua;
 mod manager;
+mod music_fix;
 mod patching;
 mod resources;
 mod search;
@@ -30,19 +32,21 @@ extern "C" {
 ///
 /// This file is required fixing the search section to be in alphabetical order
 fn check_download_hashes() {
-    if Path::new("sd:/ultimate/stage-alts/Hashes_all").exists() {
-        log::info!("Hashes file exists, no need to redownload it");
-        return;
-    }
-
-    if let Err(e) = Curler::new().download(
-        "https://raw.githubusercontent.com/ultimate-research/archive-hashes/master/Hashes_all"
-            .to_string(),
-        "sd:/ultimate/stage-alts/Hashes_all".to_string(),
-    ) {
-        log::error!("Failed to download hashes: {e:?}");
-        panic!("{e:?}");
-    }
+    //     if Path::new("sd:/ultimate/stage-alts/Hashes_all").exists() {
+    //         log::info!("Hashes file exists, no need to redownload it");
+    //         return;
+    //     }
+    //
+    //     std::fs::create_dir_all("sd:/ultimate/stage-alts").unwrap();
+    //
+    //     if let Err(e) = Curler::new().download(
+    //         "https://raw.githubusercontent.com/ultimate-research/archive-hashes/master/Hashes_all"
+    //             .to_string(),
+    //         "sd:/ultimate/stage-alts/Hashes_all".to_string(),
+    //     ) {
+    //         log::error!("Failed to download hashes: {e:?}");
+    //         panic!("{e:?}");
+    //     }
 }
 
 #[skyline::hook(replace = initial_loading)]
@@ -93,12 +97,10 @@ unsafe fn initial_loading_hook(ctx: &mut skyline::hooks::InlineCtx) {
         .iter()
         .map(|hi| (hi.hash40(), hi.index()))
         .collect();
-
-    // Used for looking up stage name from lua
-    mgr.ui_to_place = lua::get_ui_hash_to_stage_hash();
 }
 
 static ALT_NUMBER: Mutex<Option<usize>> = Mutex::new(None);
+static IS_ONLINE: AtomicBool = AtomicBool::new(false);
 
 #[skyline::hook(offset = 0x353fe30)]
 unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut LoadedDirectory {
@@ -116,6 +118,9 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
     // we should restore all files before performing our filesystem patching
     if search::is_descendant_of(path.hash40(), Hash40::from("stage"))
         && !search::is_descendant_of(path.hash40(), Hash40::from("stage/common"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage_jack"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage_edge"))
     {
         // "pretty" hash gives us a segmented list of hash path segments that we
         // can use to ensure that we are an immediate descendant of a
@@ -140,6 +145,9 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
     // Again, ensure that we are a stage folder that is not stage/common
     if search::is_descendant_of(path.hash40(), Hash40::from("stage"))
         && !search::is_descendant_of(path.hash40(), Hash40::from("stage/common"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage_jack"))
+        && !search::is_descendant_of(path.hash40(), Hash40::from("stage/resultstage_edge"))
     {
         // TODO: Change this to using the alt manager
         let Some(alt) = *ALT_NUMBER.lock() else {
@@ -182,11 +190,12 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
     result
 }
 
-static MARIO_UWORLD_ALT: AtomicUsize = AtomicUsize::new(0);
-static ANIMAL_VILLAGE_ALT: AtomicUsize = AtomicUsize::new(0);
-
 #[skyline::hook(offset = 0x25fd2b8, inline)]
 unsafe fn prepare_for_load(ctx: &InlineCtx) {
+    if IS_ONLINE.load(Ordering::Acquire) {
+        return;
+    }
+
     let search = FilesystemInfo::instance().unwrap().search();
 
     let Ok(path) = search.get_path_list_entry_from_hash(*ctx.registers[8].x.as_ref()) else {
@@ -209,8 +218,90 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
     *ALT_NUMBER.lock() = mgr.fetch_advance();
 }
 
+unsafe fn get_place_id(stage_id: usize) -> usize {
+    let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
+        .add(0x4548948);
+
+    let stage_entry = start.add(stage_id * 0x48);
+    let place_id = stage_entry.add(0x3c) as *const u32;
+    *place_id as usize
+}
+
+unsafe fn get_place_hash(place_id: usize) -> hash40::Hash40 {
+    let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
+        .add(0x45473b0);
+
+    let stage_place_entry = start.add(place_id * 0x28) as *const u64;
+    let hash = *stage_place_entry;
+
+    hash40::Hash40(hash)
+}
+
+#[skyline::hook(offset = 0x16bad64, inline)]
+unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
+    let bgm_id_ptr = *ctx.registers[1].x.as_ref() + 0x28;
+
+    let bgm_id_ptr = bgm_id_ptr as *mut u64;
+
+    let bgm_id = *bgm_id_ptr;
+    let bgm_hash = bgm_id & 0xFF_FFFFFFFF;
+
+    let mgr = manager::MANAGER.read();
+    let cache = mgr.music_cache.as_ref().unwrap();
+    let stage_id = *(*ctx.registers[1].x.as_ref() as *const u32) as usize;
+
+    let hash = get_place_hash(get_place_id(stage_id));
+    if !cache.is_song_allowed(hash40::Hash40(bgm_hash)) {
+        let new_song = cache.get_random_song(hash);
+
+        *bgm_id_ptr = (*bgm_id_ptr & 0xFFFFFF00_00000000) | new_song.0;
+    }
+
+    let alt_id = (bgm_id >> 40) & 0xFFFF;
+    *ALT_NUMBER.lock() = mgr.fetch_alt_for_stage(smash_arc::Hash40(hash.0), alt_id as usize);
+}
+
+#[skyline::hook(offset = 0x22d91f0, inline)]
+unsafe fn online_melee_any_scene_create(_: &InlineCtx) {
+    IS_ONLINE.store(true, Ordering::Release);
+}
+
+#[skyline::hook(offset = 0x22d9120, inline)]
+unsafe fn bg_matchmaking_seq(_: &InlineCtx) {
+    IS_ONLINE.store(true, Ordering::Release);
+}
+
+#[skyline::hook(offset = 0x22d9050, inline)]
+unsafe fn arena_seq(_: &InlineCtx) {
+    IS_ONLINE.store(true, Ordering::Release);
+}
+
+#[skyline::hook(offset = 0x23599ac, inline)]
+unsafe fn main_menu(_: &InlineCtx) {
+    IS_ONLINE.store(false, Ordering::Release);
+}
+
 #[skyline::main(name = "stage-alts")]
 pub fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        let location = info.location().unwrap();
+
+        let msg = match info.payload().downcast_ref::<&'static str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<Any>",
+            },
+        };
+
+        let err_msg = format!("thread has panicked at '{}', {}", msg, location);
+        skyline::error::show_error(
+            69,
+            "Skyline plugin as panicked! Please open the details and send a screenshot to the developer, then close the game.\n",
+            err_msg.as_str()
+        );
+    }));
+
     // Initialize our logger
     log::set_logger(Box::leak(Box::new(StageAltsLogger::new()))).unwrap();
     log::set_max_level(LevelFilter::Trace);
@@ -219,7 +310,18 @@ pub fn main() {
 
     check_download_hashes();
 
-    skyline::install_hooks!(initial_loading_hook, prepare_for_load, init_loaded_dir);
+    skyline::install_hooks!(
+        initial_loading_hook,
+        prepare_for_load,
+        init_loaded_dir,
+        fetch_current_alt_from_bgm_id,
+        online_melee_any_scene_create,
+        bg_matchmaking_seq,
+        arena_seq,
+        main_menu
+    );
+
+    callbacks::install();
 
     lua::install();
 }

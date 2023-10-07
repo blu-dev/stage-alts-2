@@ -505,6 +505,99 @@ local set_stage_preview_form = function(preview_index, stage_form)
     end
 end
 
+local set_alt_texture = function(left, texture_index, preview_idx)
+  local base_alt_name = left and "alt_l" or "alt_r"
+  local texture_name = left and "set_rep_alt_l" or "set_rep_alt_r"
+    local parts_name = get_stage_preview_name(preview_idx)
+    local parts = root_view:get_parts(parts_name)
+
+  local base_pane = parts:get_pane(base_alt_name)
+  local texture_pane = parts:get_pane(texture_name)
+
+  if texture_index == nil then
+    base_pane:set_visible(false)
+  else
+    base_pane:set_visible(true)
+    texture_pane:replace_texture(texture_index)
+  end
+end
+
+local set_alt_panel_textures = function(is_forward)
+    if current_selected_preview == UI_INVALID_INDEX then
+        Alts.send_message("Can't change alt on invalid preview")
+        return
+    end
+
+    local preview = stage_previews[current_selected_preview + 1]
+    if current_selected_panel == UI_INVALID_INDEX then
+        set_alt_texture(true, nil, current_selected_preview)
+        set_alt_texture(false, nil, current_selected_preview)
+        Alts.send_message("Preview's panel id is invalid")
+        return
+    end
+
+    local count = Alts.get_panel_alt_count(current_selected_panel, preview.form_type_)
+
+    if is_forward == true then
+        if count == preview.selected_alt_ then
+            preview.selected_alt_ = 0
+        else
+            preview.selected_alt_ = preview.selected_alt_ + 1
+        end
+    elseif is_forward == false then
+        if preview.selected_alt_ == 0 then
+            preview.selected_alt_ = count
+        else
+            preview.selected_alt_ = preview.selected_alt_ - 1
+        end
+    end
+
+    local texture_idx = Alts.get_alt_texture_index(current_selected_panel, preview.form_type_, preview.selected_alt_)
+
+    local parts_name = get_stage_preview_name(current_selected_preview)
+    local parts = root_view:get_parts(parts_name)
+
+    if count == 0 then
+      set_alt_texture(true, nil, current_selected_preview)
+      set_alt_texture(false, nil, current_selected_preview)
+    elseif count == 1 then
+      set_alt_texture(true, nil, current_selected_preview)
+
+      local idx = preview.selected_alt_ == 0 and 1 or 0
+      set_alt_texture(false, Alts.get_alt_texture_index(current_selected_panel, preview.form_type_, idx), current_selected_preview)
+    else
+      local left_idx = preview.selected_alt_ == 0 and count or preview.selected_alt_ - 1
+      local right_idx = preview.selected_alt_ == count and 0 or preview.selected_alt_ + 1
+
+      set_alt_texture(
+        true,
+        Alts.get_alt_texture_index(current_selected_panel, preview.form_type_, left_idx),
+        current_selected_preview
+      )
+
+      set_alt_texture(
+        false,
+        Alts.get_alt_texture_index(current_selected_panel, preview.form_type_, right_idx),
+        current_selected_preview
+      )
+    end
+
+    if texture_idx < 0 then
+        return
+    end
+    local pane_name = "set_rep_stage"
+    if preview.form_type_ == STAGE_FORM_TYPE_BATTLE then
+        pane_name = "set_rep_stage_battle"
+    elseif preview.form_type_ == STAGE_FORM_TYPE_END then
+        pane_name = "set_rep_stage_end"
+    end
+
+    local texture_pane = parts:get_pane(pane_name)
+    texture_pane:replace_texture(texture_idx)
+end
+
+
+
 -- Enables/disables the stage form/music buttons for the specified preview
 -- CLOSURE_25, R85
 local set_stage_preview_buttons_enable = function(preview_index, enable)
@@ -1814,6 +1907,8 @@ local normal_tab_main_update = function()
             local panel_id = UiScriptPlayer.invoke("get_hand_on_stage_panel_id")
             panel_id = find_proper_panel(panel_id)
             if change_panel(panel_id) == true or is_hand_interpolated_moving == true then
+                stage_previews[current_selected_preview + 1].selected_alt_ = 0
+                set_alt_panel_textures(nil)
                 if UiScriptPlayer.invoke("is_training_stage_preview", current_selected_preview) == true then
                     local preview = stage_previews[current_selected_preview + 1]
                     if preview.form_type_ ~= STAGE_FORM_TYPE_NORMAL and preview.form_type_blink_counter_ <= 0 then
@@ -2554,9 +2649,9 @@ local regular_main_update = function()
                         end
                         open_bgm_select(index, false)
                     elseif virtual_input:is_pressed(INPUT_ALT_L) then
-                        change_selected_alt(false)
+                        set_alt_panel_textures(false)
                     elseif virtual_input:is_pressed(INPUT_ALT_R) then
-                        change_selected_alt(true)
+                        set_alt_panel_textures(true)
                     else
                         -- possible
                         update_both_tabs()

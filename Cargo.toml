@@ -25,6 +25,7 @@ indexmap = "2.0.0"
 rand = { git = "https://github.com/skyline-rs/rand" }
 rlua-lua53-sys = { git = "https://github.com/blu-dev/rlua", branch = "smash" }
 prc-rs = { version = "1.6.1", features = ["indexmap-std"] }
+arcropolis-api = { git = "https://github.com/Raytwo/arcropolis_api" }
 
 [patch.crates-io]
 getrandom = { git = "https://github.com/skyline-rs/getrandom" }

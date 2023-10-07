@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io::Cursor, path::Path};
+use std::{collections::BTreeMap, io::Cursor, path::Path, ptr::NonNull};
 
 use prc::ParamKind;
 use rlua_lua53_sys as lua;
@@ -135,6 +135,53 @@ extern "C" fn get_alt_texture_index(state: *mut lua::lua_State) -> i32 {
     }
 }
 
+extern "C" fn write_alt_field_to_bgm_id(state: *mut lua::lua_State) -> i32 {
+    unsafe {
+        let mgr = MANAGER.write();
+
+        let alt_id = lua::lua_tointegerx(state, -1, std::ptr::null_mut()) as usize;
+        lua::lua_pop(state, 1);
+
+        let stage_preview_idx = lua::lua_tointegerx(state, -1, std::ptr::null_mut()) as usize;
+        lua::lua_pop(state, 1);
+
+        match mgr.current_singleton {
+            Some(mut ptr) => {
+                let object_ptr: *mut u64 = (ptr.as_mut() as *mut () as *mut u8)
+                    .add(0xf8 + 0x28 * stage_preview_idx)
+                    .cast();
+
+                *object_ptr.add(2) &= 0xFF0000FF_FFFFFFFF;
+                *object_ptr.add(2) |= ((alt_id & 0xFFFF) as u64) << 40;
+
+                // let ui_hash = *object_ptr.add(2) & 0xFF_FFFFFFFF;
+                // if ui_hash == hash40::hash40("ui_bgm_random").0 {
+                //     let bgm_id_ptr = object_ptr.add(2);
+                //     let panel = *(object_ptr.add(3) as *const u32);
+                //     if let Some(hash) = mgr.index_to_hash.get(&(panel as usize)) {
+                //         println!("{:#x}", hash.0);
+                //         let new_song = mgr
+                //             .music_cache
+                //             .as_ref()
+                //             .unwrap()
+                //             .get_random_song(hash40::Hash40(hash.0));
+                //         *bgm_id_ptr = (*bgm_id_ptr & 0xFFFFFF00_00000000) | new_song.0;
+                //     }
+                // }
+
+                log::info!("Set BGM id to {:#x}", *object_ptr.add(2));
+            }
+            None => {
+                log::error!(
+                    "Failed to write the stage alt field to bgm because the current singleton does not exist"
+                );
+            }
+        }
+
+        0
+    }
+}
+
 extern "C" fn set_alts(state: *mut lua::lua_State) -> i32 {
     unsafe {
         let mut mgr = MANAGER.write();
@@ -231,6 +278,10 @@ unsafe fn add_to_key_context(ctx: &InlineCtx) {
             func: Some(set_alts),
         },
         lua::luaL_Reg {
+            name: "write_alt_field_to_bgm_id\0".as_ptr() as _,
+            func: Some(write_alt_field_to_bgm_id),
+        },
+        lua::luaL_Reg {
             name: std::ptr::null(),
             func: None,
         },
@@ -248,6 +299,9 @@ struct StageEntry {
 #[skyline::hook(offset = 0x1b31ca0)]
 unsafe fn is_valid_entrance_param(arg: u64, arg2: i32) -> bool {
     let mut manager = MANAGER.write();
+
+    manager.current_singleton = NonNull::new(arg as _);
+
     let vec = &mut *((arg + 0x168) as *mut resources::containers::CppVector<StageEntry>);
 
     manager.index_to_hash.clear();
@@ -265,14 +319,8 @@ unsafe fn is_valid_entrance_param(arg: u64, arg2: i32) -> bool {
     call_original!(arg, arg2)
 }
 
-pub fn get_ui_hash_to_stage_hash() -> BTreeMap<Hash40, Hash40> {
-    let data = if Path::new("mods:/ui/param/database/ui/ui_stage_db.prc").exists() {
-        std::fs::read("mods:/ui/param/database/ui_stage_db.prc").unwrap()
-    } else {
-        std::fs::read("arc:/ui/param/database/ui_stage_db.prc").unwrap()
-    };
-
-    let mut reader = Cursor::new(data);
+pub fn get_ui_hash_to_stage_hash(stage: &[u8]) -> BTreeMap<Hash40, Hash40> {
+    let mut reader = Cursor::new(stage);
 
     let param_data = prc::read_stream(&mut reader).unwrap();
 

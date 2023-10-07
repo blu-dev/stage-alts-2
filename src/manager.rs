@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ptr::NonNull};
 
 use locks::RwLock;
 use smash_arc::{FilePath, Hash40, HashToIndex};
 
-use crate::utils::ConcatHash;
+use crate::{lua, music_fix::MusicCache, utils::ConcatHash};
 
 pub static MANAGER: RwLock<AltManager> = RwLock::new(AltManager::new());
 
@@ -80,6 +80,14 @@ impl StageKind {
             Self::DLC(dlc) => *dlc,
         }
     }
+
+    pub fn as_ui_hash(&self) -> Hash40 {
+        match self {
+            Self::SmallBattlefield => Hash40::from("battlefields"),
+            Self::BigBattlefield => Hash40::from("battlefieldl"),
+            _ => self.as_hash(),
+        }
+    }
 }
 
 impl From<Hash40> for StageKind {
@@ -120,11 +128,11 @@ impl UiPaths {
         let normal = match value {
             kind @ (StageKind::DLC(_) | StageKind::SmallBattlefield) => {
                 Hash40::from("ui/replace_patch/stage/stage_2/stage_2_")
-                    .concat(kind.as_hash())
+                    .concat(kind.as_ui_hash())
                     .concat(extension)
             }
             kind => Hash40::from("ui/replace/stage/stage_2/stage_2_")
-                .concat(kind.as_hash())
+                .concat(kind.as_ui_hash())
                 .concat(extension),
         };
 
@@ -209,9 +217,32 @@ pub struct AltManager {
     // For lua
     pub index_to_hash: BTreeMap<usize, Hash40>,
     pub ui_to_place: BTreeMap<Hash40, Hash40>,
+
+    pub current_singleton: Option<NonNull<()>>,
+
+    pub music_cache: Option<MusicCache>,
+
+    pub stage_data: Option<Vec<u8>>,
+    pub bgm_data: Option<Vec<u8>>,
 }
 
 impl AltManager {
+    fn try_create_singleton_backups(&mut self) {
+        let Some(stage) = self.stage_data.as_ref() else {
+            return;
+        };
+
+        let Some(bgm) = self.bgm_data.as_ref() else {
+            return;
+        };
+
+        self.music_cache = Some(MusicCache::new(stage, bgm));
+        self.ui_to_place = lua::get_ui_hash_to_stage_hash(stage);
+
+        self.stage_data = None;
+        self.bgm_data = None;
+    }
+
     pub const fn new() -> Self {
         Self {
             alts: BTreeMap::new(),
@@ -220,7 +251,21 @@ impl AltManager {
             backup_searchpaths: BTreeMap::new(),
             index_to_hash: BTreeMap::new(),
             ui_to_place: BTreeMap::new(),
+            current_singleton: None,
+            music_cache: None,
+            stage_data: None,
+            bgm_data: None,
         }
+    }
+
+    pub fn set_stage_data(&mut self, stage: &[u8]) {
+        self.stage_data = Some(stage.to_vec());
+        self.try_create_singleton_backups();
+    }
+
+    pub fn set_bgm_data(&mut self, bgm: &[u8]) {
+        self.bgm_data = Some(bgm.to_vec());
+        self.try_create_singleton_backups();
     }
 
     pub fn add_alt(&mut self, stage_info: StageInfo, alt: usize, kind: StageKind) {
@@ -280,5 +325,16 @@ impl AltManager {
                     .map(|info| info.slot_value)
             }
         }
+    }
+
+    pub fn fetch_alt_for_stage(&self, stage: Hash40, alt: usize) -> Option<usize> {
+        self.nth_alt(
+            StageInfo {
+                name: stage,
+                normal_form: true,
+            },
+            alt,
+        )
+        .map(|alt| alt.slot_value)
     }
 }
