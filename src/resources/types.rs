@@ -119,7 +119,7 @@ pub struct FilesystemInfo {
 }
 
 impl FilesystemInfo {
-    const OFFSET: usize = 0x5330f20;
+    const OFFSET: usize = 0x5332f20;
 
     pub fn instance() -> Option<&'static Self> {
         unsafe {
@@ -261,7 +261,7 @@ pub struct ResServiceNX {
 }
 
 impl ResServiceNX {
-    const OFFSET: usize = 0x5330f28;
+    const OFFSET: usize = 0x5332f28;
 
     pub fn instance() -> Option<&'static Self> {
         unsafe {

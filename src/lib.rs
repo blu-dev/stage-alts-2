@@ -102,7 +102,7 @@ unsafe fn initial_loading_hook(ctx: &mut skyline::hooks::InlineCtx) {
 static ALT_NUMBER: Mutex<Option<usize>> = Mutex::new(None);
 static IS_ONLINE: AtomicBool = AtomicBool::new(false);
 
-#[skyline::hook(offset = 0x353fe30)]
+#[skyline::hook(offset = 0x3540AB0)]
 unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut LoadedDirectory {
     // The index will either be an index to a DirInfo (what we want) or a DirectoryOffset
     // (what we don't want)
@@ -190,7 +190,7 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
     result
 }
 
-#[skyline::hook(offset = 0x25fd2b8, inline)]
+#[skyline::hook(offset = 0x25fdf38, inline)]
 unsafe fn prepare_for_load(ctx: &InlineCtx) {
     if IS_ONLINE.load(Ordering::Acquire) {
         return;
@@ -220,7 +220,7 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
 
 unsafe fn get_place_id(stage_id: usize) -> usize {
     let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
-        .add(0x4548948);
+        .add(0x45499b8);
 
     let stage_entry = start.add(stage_id * 0x48);
     let place_id = stage_entry.add(0x3c) as *const u32;
@@ -229,7 +229,7 @@ unsafe fn get_place_id(stage_id: usize) -> usize {
 
 unsafe fn get_place_hash(place_id: usize) -> hash40::Hash40 {
     let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
-        .add(0x45473b0);
+        .add(0x4548420);
 
     let stage_place_entry = start.add(place_id * 0x28) as *const u64;
     let hash = *stage_place_entry;
@@ -237,7 +237,7 @@ unsafe fn get_place_hash(place_id: usize) -> hash40::Hash40 {
     hash40::Hash40(hash)
 }
 
-#[skyline::hook(offset = 0x16bad64, inline)]
+#[skyline::hook(offset = 0x16b9eb4, inline)]
 unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
     let bgm_id_ptr = *ctx.registers[1].x.as_ref() + 0x28;
 
@@ -261,22 +261,22 @@ unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
     *ALT_NUMBER.lock() = mgr.fetch_alt_for_stage(smash_arc::Hash40(hash.0), alt_id as usize);
 }
 
-#[skyline::hook(offset = 0x22d91f0, inline)]
+#[skyline::hook(offset = 0x22d9e70, inline)]
 unsafe fn online_melee_any_scene_create(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x22d9120, inline)]
+#[skyline::hook(offset = 0x22D9DA0, inline)]
 unsafe fn bg_matchmaking_seq(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x22d9050, inline)]
+#[skyline::hook(offset = 0x22D9CD0, inline)]
 unsafe fn arena_seq(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x23599ac, inline)]
+#[skyline::hook(offset = 0x235A62C, inline)]
 unsafe fn main_menu(_: &InlineCtx) {
     IS_ONLINE.store(false, Ordering::Release);
 }

@@ -24,7 +24,11 @@ extern "C" fn parse_db_files(
 }
 
 pub fn install() {
-    arcropolis_api::register_callback("ui/param/database/ui_stage_db.prc", 1, parse_db_files);
+    arcropolis_api::register_callback(
+        "ui/param/database/ui_stage_db.prc",
+        10 * 1024 * 1024,
+        parse_db_files,
+    );
     arcropolis_api::register_callback(
         "ui/param/database/ui_bgm_db.prc",
         10 * 1024 * 1024,
