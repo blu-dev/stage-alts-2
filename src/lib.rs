@@ -102,7 +102,7 @@ unsafe fn initial_loading_hook(ctx: &mut skyline::hooks::InlineCtx) {
 static ALT_NUMBER: Mutex<Option<usize>> = Mutex::new(None);
 static IS_ONLINE: AtomicBool = AtomicBool::new(false);
 
-#[skyline::hook(offset = 0x3540AB0)]
+#[skyline::hook(offset = 0x3540ad0)]
 unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut LoadedDirectory {
     // The index will either be an index to a DirInfo (what we want) or a DirectoryOffset
     // (what we don't want)
@@ -190,7 +190,7 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
     result
 }
 
-#[skyline::hook(offset = 0x25fdf38, inline)]
+#[skyline::hook(offset = 0x25fdf58, inline)]
 unsafe fn prepare_for_load(ctx: &InlineCtx) {
     if IS_ONLINE.load(Ordering::Acquire) {
         return;
@@ -261,22 +261,22 @@ unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
     *ALT_NUMBER.lock() = mgr.fetch_alt_for_stage(smash_arc::Hash40(hash.0), alt_id as usize);
 }
 
-#[skyline::hook(offset = 0x22d9e70, inline)]
+#[skyline::hook(offset = 0x22d9e90, inline)]
 unsafe fn online_melee_any_scene_create(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x22D9DA0, inline)]
+#[skyline::hook(offset = 0x22d9dc0, inline)]
 unsafe fn bg_matchmaking_seq(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x22D9CD0, inline)]
+#[skyline::hook(offset = 0x22d9cf0, inline)]
 unsafe fn arena_seq(_: &InlineCtx) {
     IS_ONLINE.store(true, Ordering::Release);
 }
 
-#[skyline::hook(offset = 0x235A62C, inline)]
+#[skyline::hook(offset = 0x235a64c, inline)]
 unsafe fn main_menu(_: &InlineCtx) {
     IS_ONLINE.store(false, Ordering::Release);
 }

@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 log = "0.4.20"
 skyline = { git = "https://github.com/ultimate-research/skyline-rs.git" }
-locks = { git = "ssh://git@github.com/blu-dev/smashline-2" }
+locks = { git = "https://github.com/HDR-Development/smashline.git" }
 owo-colors = "3.5.0"
 smashnet = "0.2"
 smash-arc = { git = "https://github.com/jam1garner/smash-arc", features = [

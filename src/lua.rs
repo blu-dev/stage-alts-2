@@ -252,7 +252,7 @@ unsafe fn push_new_singleton(
     lua::bindings::auxsetstr(lua_state, value, real_name.as_ptr() as _);
 }
 
-#[skyline::hook(offset = 0x3373CC8, inline)]
+#[skyline::hook(offset = 0x3373ce8, inline)]
 unsafe fn add_to_key_context(ctx: &InlineCtx) {
     let lua_state: *mut lua::lua_State = *ctx.registers[19].x.as_ref() as _;
 
@@ -296,7 +296,7 @@ struct StageEntry {
     params: [f32; 4],
 }
 
-#[skyline::hook(offset = 0x1b32780)]
+#[skyline::hook(offset = 0x1b327a0)]
 unsafe fn is_valid_entrance_param(arg: u64, arg2: i32) -> bool {
     let mut manager = MANAGER.write();
 
@@ -372,7 +372,7 @@ pub fn get_ui_hash_to_stage_hash(stage: &[u8]) -> BTreeMap<Hash40, Hash40> {
     map
 }
 
-#[skyline::hook(offset = 0x3359d20)]
+#[skyline::hook(offset = 0x3359d40)]
 unsafe fn replace_texture(state: *mut lua::lua_State) -> i32 {
     if lua::lua_isinteger(state, -1) == 1 {
         let index = lua::lua_tointegerx(state, -1, std::ptr::null_mut()) as i32;
