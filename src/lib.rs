@@ -281,6 +281,11 @@ unsafe fn main_menu(_: &InlineCtx) {
     IS_ONLINE.store(false, Ordering::Release);
 }
 
+#[no_mangle]
+pub extern "C" fn get_current_stage_alt() -> usize {
+    ALT_NUMBER.lock().unwrap_or_default()
+}
+
 #[skyline::main(name = "stage-alts")]
 pub fn main() {
     std::panic::set_hook(Box::new(|info| {
