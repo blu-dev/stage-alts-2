@@ -139,7 +139,7 @@ impl UiPaths {
         let battle = match value {
             StageKind::Training => normal,
             StageKind::Battlefield | StageKind::BigBattlefield | StageKind::SmallBattlefield => {
-                Hash40::from("ui/replace/stage/stage_2/stage_2_battlefield").concat(extension)
+                Hash40::from("ui/replace/stage/stage_4/stage_4_battlefield").concat(extension)
             }
             StageKind::DLC(hash) => Hash40::from("ui/replace_patch/stage/stage_4/stage_4_")
                 .concat(hash)
@@ -155,7 +155,7 @@ impl UiPaths {
                 Hash40::from("ui/replace/stage/stage_3/stage_3_battlefield_")
                     .concat(format!("s{alt_id:02}.bntx").as_str())
             }
-            StageKind::DLC(hash) => Hash40::from("ui/replace_patch/stage/stage_4/stage_3_")
+            StageKind::DLC(hash) => Hash40::from("ui/replace_patch/stage/stage_3/stage_3_")
                 .concat(hash)
                 .concat(extension),
             other => Hash40::from("ui/replace/stage/stage_3/stage_3_")
