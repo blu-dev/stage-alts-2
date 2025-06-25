@@ -102,7 +102,7 @@ unsafe fn initial_loading_hook(ctx: &mut skyline::hooks::InlineCtx) {
 static ALT_NUMBER: Mutex<Option<usize>> = Mutex::new(None);
 static IS_ONLINE: AtomicBool = AtomicBool::new(false);
 
-#[skyline::hook(offset = 0x3540ad0)]
+#[skyline::hook(offset = 0x3540860)]
 unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut LoadedDirectory {
     // The index will either be an index to a DirInfo (what we want) or a DirectoryOffset
     // (what we don't want)
@@ -220,7 +220,7 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
 
 unsafe fn get_place_id(stage_id: usize) -> usize {
     let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
-        .add(0x45499b8);
+        .add(0x45489b8);
 
     let stage_entry = start.add(stage_id * 0x48);
     let place_id = stage_entry.add(0x3c) as *const u32;
@@ -229,7 +229,7 @@ unsafe fn get_place_id(stage_id: usize) -> usize {
 
 unsafe fn get_place_hash(place_id: usize) -> hash40::Hash40 {
     let start = (skyline::hooks::getRegionAddress(skyline::hooks::Region::Text) as *const u8)
-        .add(0x4548420);
+        .add(0x4547420);
 
     let stage_place_entry = start.add(place_id * 0x28) as *const u64;
     let hash = *stage_place_entry;
